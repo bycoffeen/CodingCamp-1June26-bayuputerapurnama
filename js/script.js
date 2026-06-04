@@ -867,6 +867,7 @@ const UI_Renderer = {
 
     if (tasks.length === 0) {
       if (emptyMsg) emptyMsg.textContent = 'No tasks yet. Add your first task! 🚀';
+      requestAnimationFrame(syncQuickLinksHeight);
       return;
     }
 
@@ -889,6 +890,7 @@ const UI_Renderer = {
     }
 
     visible.forEach(task => ul.appendChild(this.renderTaskCard(task)));
+    requestAnimationFrame(syncQuickLinksHeight);
   },
 
   renderLinks(links) {
@@ -898,6 +900,7 @@ const UI_Renderer = {
 
     if (links.length === 0) {
       container.innerHTML = '<p style="color:var(--color-text-dim);font-size:0.875rem;">No links yet. Add your favourite shortcuts!</p>';
+      requestAnimationFrame(syncQuickLinksHeight);
       return;
     }
 
@@ -935,6 +938,8 @@ const UI_Renderer = {
       wrapper.append(a, btnDel);
       container.appendChild(wrapper);
     });
+
+    requestAnimationFrame(syncQuickLinksHeight);
   },
 
   renderDashboard() {
@@ -1028,6 +1033,31 @@ function showStorageWarning(message) {
   banner.textContent = `⚠️ ${message}`;
   area.appendChild(banner);
   setTimeout(() => banner.remove(), 5000);
+}
+
+function syncQuickLinksHeight() {
+  const quickLinks = document.getElementById('quick-links');
+  const todoList   = document.getElementById('todo-list');
+  const todoItems  = document.getElementById('todo-items');
+
+  if (!quickLinks || !todoList || !todoItems) return;
+
+  if (!window.matchMedia('(min-width: 1024px)').matches) {
+    quickLinks.style.removeProperty('--quick-links-max-height');
+    return;
+  }
+
+  quickLinks.style.removeProperty('--quick-links-max-height');
+
+  const quickRect         = quickLinks.getBoundingClientRect();
+  const todoRect          = todoList.getBoundingClientRect();
+  const todoItemsRect     = todoItems.getBoundingClientRect();
+  const todoItemsMaxStyle = Number.parseFloat(getComputedStyle(todoItems).maxHeight);
+  const todoItemsMax      = Number.isFinite(todoItemsMaxStyle) ? todoItemsMaxStyle : todoItemsRect.height;
+  const todoMaxHeight     = todoRect.height - todoItemsRect.height + todoItemsMax;
+  const maxHeight         = Math.max(0, Math.floor(todoRect.top + todoMaxHeight - quickRect.top));
+
+  quickLinks.style.setProperty('--quick-links-max-height', `${maxHeight}px`);
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -1166,4 +1196,5 @@ document.addEventListener('DOMContentLoaded', () => {
   initFilters();
   initHideDoneToggle();   // Hide completed tasks toggle
   initLinkForm();
+  window.addEventListener('resize', () => requestAnimationFrame(syncQuickLinksHeight));
 });
