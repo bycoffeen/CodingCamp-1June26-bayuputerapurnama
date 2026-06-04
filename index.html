@@ -20,6 +20,11 @@
       <!-- Right: greeting & custom name -->
       <div class="greeting-right">
         <h1 id="greeting-text">Welcome!</h1>
+        <!-- First-time hint tooltip -->
+        <div id="name-hint" class="name-hint" style="display: none;">
+          <span class="hint-text">💡 Tip: Click your name to change it!</span>
+          <button id="hint-close" class="hint-close" type="button" aria-label="Close hint">&times;</button>
+        </div>
       </div>
     </section>
 
@@ -43,7 +48,9 @@
 
     <!-- ===== BAGIAN TO-DO LIST ===== -->
     <section id="todo-list" aria-label="To-Do List">
-      <h2>To-Do List</h2>
+      <div class="todo-header">
+        <h2>To-Do List</h2>
+      </div>
 
       <!-- Statistics summary -->
       <div id="todo-summary" aria-live="polite">
@@ -78,6 +85,12 @@
         <button type="submit" id="btn-add-todo">Add</button>
         <p id="todo-error" class="error-message" role="alert" aria-live="assertive"></p>
       </form>
+
+      <!-- Hide completed toggle -->
+      <label class="toggle-hide-done" for="toggle-hide-done">
+        <input type="checkbox" id="toggle-hide-done" aria-label="Hide completed tasks" />
+        <span class="toggle-label">Hide Completed</span>
+      </label>
 
       <!-- Filters & search -->
       <div id="todo-filters">
@@ -148,6 +161,14 @@
         <!-- Link shortcut buttons rendered by JavaScript -->
       </div>
     </section>
+
+    <!-- Footer / Watermark -->
+    <footer class="watermark">
+      <a href="https://www.linkedin.com/in/puterabay/" target="_blank" rel="noopener noreferrer" class="watermark-link">
+        coffeen
+      </a>
+      <span class="watermark-powered">- powered by Kiro</span>
+    </footer>
 
   </div><!-- /#app -->
 

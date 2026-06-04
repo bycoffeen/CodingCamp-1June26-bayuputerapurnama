@@ -19,6 +19,7 @@ const Storage_Handler = {
     LINKS:  'tld_links',
     NAME:   'tld_custom_name',
     TIMER:  'tld_timer_duration',
+    HIDE_DONE: 'tld_hide_done_tasks',
   },
 
   isAvailable() {
@@ -66,6 +67,9 @@ const Storage_Handler = {
   saveName(name)      { this._save(this.KEYS.NAME, name); },
   loadName()          { return this._load(this.KEYS.NAME, ''); },
 
+  saveHideDone(hide)  { this._save(this.KEYS.HIDE_DONE, hide); },
+  loadHideDone()      { return this._load(this.KEYS.HIDE_DONE, false); },
+
   saveDuration(mins)  { this._save(this.KEYS.TIMER, mins); },
   loadDuration()      { return this._load(this.KEYS.TIMER, 25); },
 };
@@ -79,6 +83,7 @@ const AppState = {
   tasks:       [],
   links:       [],
   customName:  '',
+  hideDone:    false,
   filters: {
     category:  'all',
     status:    'all',
@@ -238,6 +243,73 @@ function _activateNameEdit(nameSpan) {
 function initCustomName() {
   // Inline edit is attached directly in _renderGreetingText().
   // Nothing to init here — kept for compatibility.
+}
+
+/* ══════════════════════════════════════════════════════════
+   NAME HINT SYSTEM
+   Show a first-time tooltip to inform users about name editing.
+══════════════════════════════════════════════════════════ */
+
+function initNameHint() {
+  const HINT_KEY = 'greetingHintShown';
+  const hintEl = document.getElementById('name-hint');
+  const closeBtn = document.getElementById('hint-close');
+  
+  if (!hintEl || !closeBtn) return;
+  
+  // Check if hint has been shown before
+  const hintShown = localStorage.getItem(HINT_KEY);
+  
+  if (hintShown === 'true') {
+    // Already shown, keep it hidden
+    hintEl.remove();
+    return;
+  }
+  
+  // Show the hint with a slight delay for better UX
+  setTimeout(() => {
+    hintEl.style.display = 'inline-flex';
+  }, 1500);
+  
+  // Function to dismiss the hint
+  const dismissHint = () => {
+    hintEl.classList.add('hint-dismissing');
+    
+    // Remove after animation completes
+    setTimeout(() => {
+      hintEl.remove();
+    }, 300);
+    
+    // Save to localStorage
+    try {
+      localStorage.setItem(HINT_KEY, 'true');
+    } catch (e) {
+      console.warn('Could not save hint state:', e);
+    }
+  };
+  
+  // Close button click
+  closeBtn.addEventListener('click', dismissHint);
+  
+  // Also dismiss when user clicks the name to edit it
+  const observeNameClick = () => {
+    const usernameSpan = document.getElementById('username');
+    if (usernameSpan) {
+      usernameSpan.addEventListener('click', dismissHint, { once: true });
+    }
+  };
+  
+  // Initial setup
+  observeNameClick();
+  
+  // Re-observe after greeting updates (since username span is recreated)
+  const originalRenderGreetingText = _renderGreetingText;
+  _renderGreetingText = function(...args) {
+    originalRenderGreetingText.apply(this, args);
+    if (document.getElementById('name-hint')) {
+      observeNameClick();
+    }
+  };
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -497,6 +569,37 @@ const Task_Manager = {
     Storage_Handler.saveTasks(AppState.tasks);
     return true;
   },
+  
+  /**
+   * Reorder tasks array based on drag-and-drop.
+   * @param {string} draggedId - ID of the dragged task
+   * @param {string} targetId - ID of the target task
+   * @param {boolean} insertBefore - If true, insert before target; otherwise after
+   */
+  reorderTasks(draggedId, targetId, insertBefore) {
+    const draggedIdx = AppState.tasks.findIndex(t => t.id === draggedId);
+    const targetIdx = AppState.tasks.findIndex(t => t.id === targetId);
+    
+    if (draggedIdx === -1 || targetIdx === -1) return false;
+    if (draggedIdx === targetIdx) return false;
+    
+    // Remove dragged task from array
+    const [draggedTask] = AppState.tasks.splice(draggedIdx, 1);
+    
+    // Find new target index after removal
+    const newTargetIdx = AppState.tasks.findIndex(t => t.id === targetId);
+    
+    // Insert at appropriate position
+    const insertIdx = insertBefore ? newTargetIdx : newTargetIdx + 1;
+    AppState.tasks.splice(insertIdx, 0, draggedTask);
+    
+    // Update all tasks' updatedAt timestamp
+    draggedTask.updatedAt = new Date().toISOString();
+    
+    // Save to localStorage
+    Storage_Handler.saveTasks(AppState.tasks);
+    return true;
+  },
 };
 
 /* ══════════════════════════════════════════════════════════
@@ -575,6 +678,17 @@ const UI_Renderer = {
     const li = document.createElement('li');
     li.className  = `todo-item${task.status === 'completed' ? ' task-completed' : ''}`;
     li.dataset.id = task.id;
+    
+    // Enable drag-and-drop
+    li.draggable = true;
+    li.setAttribute('role', 'listitem');
+    
+    // ── Drag Handle ──
+    const dragHandle = document.createElement('span');
+    dragHandle.className = 'drag-handle';
+    dragHandle.innerHTML = '⋮⋮';
+    dragHandle.setAttribute('aria-label', 'Drag to reorder');
+    dragHandle.title = 'Drag to reorder';
 
     // ── Checkbox ──
     const checkbox    = document.createElement('input');
@@ -622,7 +736,7 @@ const UI_Renderer = {
       UI_Renderer.renderDashboard();
     });
 
-    li.append(checkbox, titleSpan, catBadge, prioBadge, btnEdit, btnDelete);
+    li.append(dragHandle, checkbox, titleSpan, catBadge, prioBadge, btnEdit, btnDelete);
     return li;
   },
 
@@ -759,15 +873,22 @@ const UI_Renderer = {
     const allDone  = tasks.every(t => t.status === 'completed');
     const filtered = this.applyFilters(tasks, filters, searchQuery);
 
-    if (allDone) {
+    // If hideDone is active, exclude completed tasks from rendering entirely
+    const visible = AppState.hideDone
+      ? filtered.filter(t => t.status !== 'completed')
+      : filtered;
+
+    if (allDone && !AppState.hideDone) {
       if (emptyMsg) emptyMsg.textContent = 'All tasks done! Great work! 🎉';
-    } else if (filtered.length === 0) {
-      if (emptyMsg) emptyMsg.textContent = 'No tasks match the current filters.';
+    } else if (visible.length === 0) {
+      if (emptyMsg) emptyMsg.textContent = AppState.hideDone
+        ? 'No pending tasks. All caught up! 🎉'
+        : 'No tasks match the current filters.';
     } else {
       if (emptyMsg) emptyMsg.textContent = '';
     }
 
-    filtered.forEach(task => ul.appendChild(this.renderTaskCard(task)));
+    visible.forEach(task => ul.appendChild(this.renderTaskCard(task)));
   },
 
   renderLinks(links) {
@@ -820,6 +941,78 @@ const UI_Renderer = {
     this.renderSummary(AppState.tasks);
     this.renderTaskList(AppState.tasks, AppState.filters, AppState.searchQuery);
     this.renderLinks(AppState.links);
+    
+    // Initialize drag-and-drop after rendering
+    this.initDragAndDrop();
+  },
+  
+  /**
+   * Initialize HTML5 Drag and Drop for task reordering
+   */
+  initDragAndDrop() {
+    const ul = document.getElementById('todo-items');
+    if (!ul) return;
+    
+    let draggedElement = null;
+    let draggedId = null;
+    
+    const taskItems = ul.querySelectorAll('.todo-item');
+    
+    taskItems.forEach(item => {
+      // Dragstart - when drag begins
+      item.addEventListener('dragstart', (e) => {
+        draggedElement = item;
+        draggedId = item.dataset.id;
+        item.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/html', item.innerHTML);
+      });
+      
+      // Dragend - when drag ends
+      item.addEventListener('dragend', (e) => {
+        item.classList.remove('dragging');
+        // Remove all drag-over classes
+        taskItems.forEach(i => i.classList.remove('drag-over'));
+      });
+      
+      // Dragover - when dragging over an element
+      item.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        
+        if (draggedElement === item) return;
+        
+        // Remove drag-over from all items
+        taskItems.forEach(i => i.classList.remove('drag-over'));
+        
+        // Add drag-over to current item
+        item.classList.add('drag-over');
+      });
+      
+      // Dragleave - when leaving an element
+      item.addEventListener('dragleave', (e) => {
+        item.classList.remove('drag-over');
+      });
+      
+      // Drop - when dropped on an element
+      item.addEventListener('drop', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        if (draggedElement === item) return;
+        
+        const targetId = item.dataset.id;
+        const targetRect = item.getBoundingClientRect();
+        const offset = e.clientY - targetRect.top;
+        const insertBefore = offset < targetRect.height / 2;
+        
+        // Reorder tasks
+        Task_Manager.reorderTasks(draggedId, targetId, insertBefore);
+        
+        // Re-render dashboard
+        this.renderDashboard();
+      });
+    });
   },
 };
 
@@ -897,6 +1090,28 @@ function initFilters() {
   });
 }
 
+/**
+ * Initialize Hide Completed Tasks toggle.
+ * Uses JS re-render to completely skip completed tasks from the DOM,
+ * preventing any empty gaps in the layout.
+ */
+function initHideDoneToggle() {
+  const toggle = document.getElementById('toggle-hide-done');
+  if (!toggle) return;
+
+  // Sync checkbox to saved state on load
+  toggle.checked = AppState.hideDone;
+
+  // On change: update state, persist, re-render
+  toggle.addEventListener('change', () => {
+    AppState.hideDone = toggle.checked;
+    Storage_Handler.saveHideDone(AppState.hideDone);
+    // Re-render task list — completed tasks are now excluded from DOM entirely
+    UI_Renderer.renderTaskList(AppState.tasks, AppState.filters, AppState.searchQuery);
+    UI_Renderer.initDragAndDrop();
+  });
+}
+
 function initLinkForm() {
   const form   = document.getElementById('link-form');
   const nameEl = document.getElementById('link-name-input');
@@ -932,11 +1147,13 @@ document.addEventListener('DOMContentLoaded', () => {
   AppState.tasks      = Storage_Handler.loadTasks();
   AppState.links      = Storage_Handler.loadLinks();
   AppState.customName = Storage_Handler.loadName();
+  AppState.hideDone   = Storage_Handler.loadHideDone();
 
   // ── Greeting (runs every second) ──
   updateGreeting();
   setInterval(updateGreeting, 1000);
   initCustomName();       // Challenge 2
+  initNameHint();         // First-time hint for name editing
 
   // ── Focus Timer ──
   initTimer();            // Challenge 3
@@ -947,5 +1164,6 @@ document.addEventListener('DOMContentLoaded', () => {
   // ── Event handlers ──
   initTodoForm();         // Challenge 1 (duplicate check inside Task_Manager)
   initFilters();
+  initHideDoneToggle();   // Hide completed tasks toggle
   initLinkForm();
 });

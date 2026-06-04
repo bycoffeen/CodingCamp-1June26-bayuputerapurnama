@@ -109,6 +109,7 @@ body {
   max-width: 1280px;
   margin: 0 auto;
   padding: var(--space-xl);
+  align-items: start; /* prevents left column cards from stretching to match todo-list height */
 }
 
 /* ── 5. KARTU SECTION (shared) ────────────────────────────── */
@@ -269,6 +270,79 @@ p, li, label, input, button {
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
+  /* align-self: start keeps this card from stretching in the grid row */
+  align-self: start;
+  /* grid span must be explicit so align-self: start still fills the column */
+  grid-row: span 2;
+}
+
+/* Todo header with toggle */
+.todo-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+  margin-bottom: 0;
+}
+
+.todo-header h2 {
+  margin-bottom: 0;
+}
+
+/* Hide completed toggle */
+.toggle-hide-done {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  cursor: pointer;
+  user-select: none;
+  padding: var(--space-xs) var(--space-md);
+  border-radius: var(--radius-full);
+  background-color: transparent;
+  border: 1px solid var(--color-border);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+  align-self: flex-start;
+}
+
+.toggle-hide-done:hover {
+  background-color: rgba(124, 58, 237, 0.08);
+  border-color: var(--color-accent);
+}
+
+.toggle-hide-done input[type="checkbox"] {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--color-accent);
+  cursor: pointer;
+  margin: 0;
+}
+
+.toggle-label {
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+  font-weight: 500;
+  transition: color var(--transition-fast);
+}
+
+.toggle-hide-done:hover .toggle-label {
+  color: var(--color-accent-light);
+}
+
+.toggle-hide-done input[type="checkbox"]:checked ~ .toggle-label {
+  color: var(--color-accent-light);
+}
+
+/* Hide completed tasks when toggle is active — handled by JS render, no CSS needed */
+
+/* Normal state with smooth fade-in for newly rendered tasks */
+#todo-items .todo-item {
+  animation: task-fade-in 200ms ease forwards;
+}
+
+@keyframes task-fade-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 #todo-form {
@@ -288,6 +362,29 @@ p, li, label, input, button {
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
+  max-height: 420px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: var(--space-xs); /* breathing room so scrollbar doesn't overlap items */
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+}
+
+#todo-items::-webkit-scrollbar {
+  width: 5px;
+}
+
+#todo-items::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+#todo-items::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 3px;
+}
+
+#todo-items::-webkit-scrollbar-thumb:hover {
+  background: var(--color-accent);
 }
 
 /* Task item */
@@ -299,12 +396,55 @@ p, li, label, input, button {
   background-color: var(--color-bg-input);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), transform 200ms ease, opacity 200ms ease;
+  cursor: grab;
+  user-select: none;
+}
+
+.todo-item:active {
+  cursor: grabbing;
 }
 
 .todo-item:hover {
   background-color: #1e2240;
   border-color: var(--color-accent);
+}
+
+/* Drag handle */
+.drag-handle {
+  color: var(--color-text-dim);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: grab;
+  flex-shrink: 0;
+  opacity: 0.4;
+  transition: opacity 40ms ease, color 40ms ease;
+  padding: 0 2px;
+}
+
+.todo-item:hover .drag-handle {
+  opacity: 0.7;
+  color: var(--color-text-muted);
+}
+
+.todo-item:active .drag-handle {
+  cursor: grabbing;
+}
+
+/* Dragging state */
+.todo-item.dragging {
+  opacity: 0.5;
+  cursor: grabbing;
+  transform: scale(0.98);
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+}
+
+/* Drop target indicator */
+.todo-item.drag-over {
+  border-top: 3px solid var(--color-accent);
+  border-color: var(--color-accent);
+  background-color: rgba(124, 58, 237, 0.1);
+  transform: translateY(2px);
 }
 
 .todo-item input[type="checkbox"] {
@@ -529,6 +669,12 @@ button[type="submit"]:hover,
     padding: var(--space-lg);
   }
 
+  /* reset span — single column layout, each card takes its own row */
+  #todo-list {
+    grid-row: span 1;
+    align-self: auto;
+  }
+
   #greeting {
     flex-direction: column;
     align-items: flex-start;
@@ -687,6 +833,16 @@ button[type="submit"]:hover,
   #todo-summary {
     gap: var(--space-sm);
   }
+  
+  .todo-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .toggle-hide-done {
+    width: 100%;
+    justify-content: center;
+  }
 }
 
 /* ── 23. INLINE NAME EDITOR ───────────────────────────────── */
@@ -723,6 +879,90 @@ button[type="submit"]:hover,
 
 #username-input:focus {
   border-bottom-color: var(--color-accent-light);
+}
+
+/* Name hint tooltip - first-time only */
+.name-hint {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  background: rgba(124, 58, 237, 0.12);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(124, 58, 237, 0.3);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.15);
+  animation: hint-fade-in 0.4s ease-out forwards, hint-float 2s ease-in-out infinite;
+}
+
+.hint-text {
+  font-size: 0.875rem;
+  color: var(--color-accent-light);
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.hint-close {
+  background: transparent;
+  border: none;
+  color: var(--color-accent-light);
+  font-size: 1.25rem;
+  line-height: 1;
+  padding: 0;
+  width: 1.25rem;
+  height: 1.25rem;
+  cursor: pointer;
+  transition: color 40ms ease, transform 40ms ease;
+  flex-shrink: 0;
+}
+
+.hint-close:hover {
+  color: var(--color-text);
+  transform: scale(1.1);
+}
+
+.hint-close:active {
+  transform: scale(0.95);
+}
+
+/* Animations */
+@keyframes hint-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes hint-float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+/* Dismissing animation */
+.name-hint.hint-dismissing {
+  animation: hint-fade-out 0.3s ease-in forwards;
+}
+
+@keyframes hint-fade-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.9);
+  }
 }
 
 /* ── 24. TOAST NOTIFICATION SYSTEM ───────────────────────── */
@@ -916,4 +1156,53 @@ button[type="submit"]:hover,
   color: var(--color-text-muted) !important;
   font-size: 0.8125rem !important;
   padding: 4px var(--space-sm) !important;
+}
+
+/* ── 26. WATERMARK FOOTER ─────────────────────────────────── */
+.watermark {
+  margin-top: 40px;
+  padding-bottom: 20px;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.watermark-link {
+  display: inline-block;
+  font-size: 1rem;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-weight: 400;
+  color: var(--color-text-muted);
+  opacity: 0.4;
+  letter-spacing: 0.03em;
+  text-decoration: none;
+  cursor: pointer;
+  transition: opacity 200ms ease, color 200ms ease, text-shadow 200ms ease;
+  user-select: none;
+}
+
+.watermark-link:hover {
+  opacity: 0.8;
+  color: var(--color-accent-light);
+  text-shadow: 
+    0 0 8px var(--color-accent-glow),
+    0 0 16px var(--color-accent-glow),
+    0 0 24px rgba(124, 58, 237, 0.15);
+}
+
+.watermark-link:active {
+  transform: scale(0.98);
+}
+
+.watermark-powered {
+  font-size: 0.875rem;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-weight: 400;
+  color: var(--color-text-dim);
+  opacity: 0.35;
+  letter-spacing: 0.02em;
+  user-select: none;
+  pointer-events: none;
 }
