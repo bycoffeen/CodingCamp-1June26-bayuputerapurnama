@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>To-Do List Life Dashboard</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <div id="app">
+
+    <!-- ===== BAGIAN GREETING ===== -->
+    <section id="greeting" aria-label="Greeting">
+      <!-- Left: clock & date -->
+      <div class="greeting-left">
+        <p id="current-time" aria-live="polite">00:00:00</p>
+        <p id="current-date">Monday, January 1 2024</p>
+      </div>
+      <!-- Right: greeting & custom name -->
+      <div class="greeting-right">
+        <h1 id="greeting-text">Welcome!</h1>
+      </div>
+    </section>
+
+    <!-- ===== BAGIAN FOCUS TIMER ===== -->
+    <section id="focus-timer" aria-label="Focus Timer">
+      <h2>Focus Timer</h2>
+      <!-- Timer display with +/- buttons flanking -->
+      <div class="timer-display-row">
+        <button id="btn-timer-minus" type="button" class="btn-duration-adjust" aria-label="Decrease duration by 1 minute">−</button>
+        <div class="timer-display" aria-live="polite" aria-atomic="true">
+          <span id="timer-minutes">25</span>:<span id="timer-seconds">00</span>
+        </div>
+        <button id="btn-timer-plus" type="button" class="btn-duration-adjust" aria-label="Increase duration by 1 minute">+</button>
+      </div>
+      <div class="timer-controls">
+        <button id="btn-timer-start" type="button">Start</button>
+        <button id="btn-timer-stop" type="button">Stop</button>
+        <button id="btn-timer-reset" type="button">Reset</button>
+      </div>
+    </section>
+
+    <!-- ===== BAGIAN TO-DO LIST ===== -->
+    <section id="todo-list" aria-label="To-Do List">
+      <h2>To-Do List</h2>
+
+      <!-- Statistics summary -->
+      <div id="todo-summary" aria-live="polite">
+        <span id="summary-total">0 tasks</span>
+        <span id="summary-completed">0 done</span>
+        <span id="summary-pending">0 pending</span>
+        <span id="summary-percent">0%</span>
+      </div>
+
+      <!-- Add task form -->
+      <form id="todo-form" novalidate>
+        <label for="todo-input" class="visually-hidden">New task</label>
+        <input
+          type="text"
+          id="todo-input"
+          name="todo-input"
+          placeholder="Add a new task..."
+          autocomplete="off"
+          aria-required="true"
+        />
+        <select id="todo-category" aria-label="Task category">
+          <option value="work">Work</option>
+          <option value="personal">Personal</option>
+          <option value="health">Health</option>
+          <option value="study">Study</option>
+        </select>
+        <select id="todo-priority" aria-label="Task priority">
+          <option value="high">High</option>
+          <option value="medium" selected>Medium</option>
+          <option value="low">Low</option>
+        </select>
+        <button type="submit" id="btn-add-todo">Add</button>
+        <p id="todo-error" class="error-message" role="alert" aria-live="assertive"></p>
+      </form>
+
+      <!-- Filters & search -->
+      <div id="todo-filters">
+        <input
+          type="text"
+          id="search-input"
+          placeholder="Search tasks..."
+          autocomplete="off"
+          aria-label="Search tasks"
+        />
+        <select id="filter-category" aria-label="Filter by category">
+          <option value="all">All Categories</option>
+          <option value="work">Work</option>
+          <option value="personal">Personal</option>
+          <option value="health">Health</option>
+          <option value="study">Study</option>
+        </select>
+        <select id="filter-status" aria-label="Filter by status">
+          <option value="all">All Statuses</option>
+          <option value="pending">Pending</option>
+          <option value="completed">Completed</option>
+        </select>
+        <select id="filter-priority" aria-label="Filter by priority">
+          <option value="all">All Priorities</option>
+          <option value="high">High</option>
+          <option value="medium">Medium</option>
+          <option value="low">Low</option>
+        </select>
+      </div>
+
+      <!-- Task list -->
+      <ul id="todo-items" aria-label="Task list">
+        <!-- Task items rendered by JavaScript -->
+      </ul>
+
+      <!-- Empty / congrats message -->
+      <p id="todo-empty-msg" class="empty-message" aria-live="polite"></p>
+    </section>
+
+    <!-- ===== BAGIAN QUICK LINKS ===== -->
+    <section id="quick-links" aria-label="Quick Links">
+      <h2>Quick Links</h2>
+
+      <!-- Add link form -->
+      <form id="link-form" novalidate>
+        <label for="link-name-input" class="visually-hidden">Link name</label>
+        <input
+          type="text"
+          id="link-name-input"
+          name="link-name"
+          placeholder="Link name..."
+          autocomplete="off"
+        />
+        <label for="link-url-input" class="visually-hidden">Link URL</label>
+        <input
+          type="text"
+          id="link-url-input"
+          name="link-url"
+          placeholder="https://..."
+          autocomplete="off"
+        />
+        <button type="submit" id="btn-add-link">Add</button>
+        <p id="link-error" class="error-message" role="alert" aria-live="assertive"></p>
+      </form>
+
+      <!-- Shortcut buttons area -->
+      <div id="link-shortcuts" aria-label="Shortcut links">
+        <!-- Link shortcut buttons rendered by JavaScript -->
+      </div>
+    </section>
+
+  </div><!-- /#app -->
+
+  <!-- Global notification area -->
+  <div id="notification-area" role="status" aria-live="polite"></div>
+
+  <!-- Toast container -->
+  <div id="toast-container" aria-live="assertive" aria-atomic="true"></div>
+
+  <script src="js/script.js"></script>
+</body>
+</html>
