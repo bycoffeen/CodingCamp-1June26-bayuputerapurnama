@@ -100,7 +100,7 @@ body {
 #app {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  grid-template-rows: auto auto minmax(0, 1fr); /* 🌟 DIUBAH: Mengunci baris agar tidak bisa dipaksa melar oleh konten */
+  grid-template-rows: auto auto minmax(0, 1fr);
   grid-template-areas:
     "greeting    greeting"
     "focus-timer todo-list"
@@ -111,7 +111,7 @@ body {
   padding: var(--space-xl);
   align-items: start; 
 }
-/* prevents left column cards from stretching to match todo-list height */
+
 /* ── 5. KARTU SECTION (shared) ────────────────────────────── */
 #app > section {
   background-color: var(--color-bg-card);
