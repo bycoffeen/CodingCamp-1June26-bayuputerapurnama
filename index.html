@@ -20,6 +20,7 @@
       <!-- Right: greeting & custom name -->
       <div class="greeting-right">
         <h1 id="greeting-text">Welcome!</h1>
+        <p id="daily-quote" class="daily-quote">Small steps still count.</p>
         <!-- First-time hint tooltip -->
         <div id="name-hint" class="name-hint" style="display: none;">
           <span class="hint-text">💡 Tip: Click your name to change it!</span>
@@ -31,6 +32,11 @@
     <!-- ===== BAGIAN FOCUS TIMER ===== -->
     <section id="focus-timer" aria-label="Focus Timer">
       <h2>Focus Timer</h2>
+      <div class="timer-modes" role="group" aria-label="Timer mode">
+        <button type="button" class="timer-mode-btn active" data-mode="focus">Focus</button>
+        <button type="button" class="timer-mode-btn" data-mode="shortBreak">Short Break</button>
+        <button type="button" class="timer-mode-btn" data-mode="longBreak">Long Break</button>
+      </div>
       <!-- Timer display with +/- buttons flanking -->
       <div class="timer-display-row">
         <button id="btn-timer-minus" type="button" class="btn-duration-adjust" aria-label="Decrease duration by 1 minute">−</button>
@@ -44,12 +50,14 @@
         <button id="btn-timer-stop" type="button">Stop</button>
         <button id="btn-timer-reset" type="button">Reset</button>
       </div>
+      <p id="focus-session-counter" class="session-counter" aria-live="polite">0 focus sessions today</p>
     </section>
 
     <!-- ===== BAGIAN TO-DO LIST ===== -->
     <section id="todo-list" aria-label="To-Do List">
       <div class="todo-header">
         <h2>To-Do List</h2>
+        
       </div>
 
       <!-- Statistics summary -->
@@ -82,15 +90,27 @@
           <option value="medium" selected>Medium</option>
           <option value="low">Low</option>
         </select>
+        <label for="todo-due-date" class="visually-hidden">Task due date</label>
+        <input
+          type="date"
+          id="todo-due-date"
+          name="todo-due-date"
+          aria-label="Task due date"
+        />
         <button type="submit" id="btn-add-todo">Add</button>
         <p id="todo-error" class="error-message" role="alert" aria-live="assertive"></p>
       </form>
 
-      <!-- Hide completed toggle -->
-      <label class="toggle-hide-done" for="toggle-hide-done">
-        <input type="checkbox" id="toggle-hide-done" aria-label="Hide completed tasks" />
-        <span class="toggle-label">Hide Completed</span>
-      </label>
+      <!-- Toggle "Hide Completed" di sebelah kiri -->
+      <div class="todo-utils">
+        <label class="toggle-hide-done" for="toggle-hide-done">
+          <input type="checkbox" id="toggle-hide-done" aria-label="Hide completed tasks" />
+          <span class="toggle-label">Hide Completed</span>
+        </label>
+
+      <!-- Tombol "Clear Completed" di sebelah kanan -->
+        <button id="btn-clear-completed" type="button">Clear Completed</button>
+      </div>
 
       <!-- Filters & search -->
       <div id="todo-filters">
@@ -177,6 +197,18 @@
 
   <!-- Toast container -->
   <div id="toast-container" aria-live="assertive" aria-atomic="true"></div>
+
+  <!-- Focus timer completion modal -->
+  <div id="timer-alert-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="timer-alert-title" hidden>
+    <div class="modal-card">
+      <h2 id="timer-alert-title">Focus Session Complete</h2>
+      <p>Your focus timer is done. Take a short break before starting again.</p>
+      <div class="modal-actions">
+        <button id="timer-alert-restart" type="button">Restart Timer</button>
+        <button id="timer-alert-close" type="button">Close</button>
+      </div>
+    </div>
+  </div>
 
   <script src="js/script.js"></script>
 </body>

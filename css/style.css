@@ -197,6 +197,13 @@ p, li, label, input, button {
   color: var(--color-accent-light);
 }
 
+.daily-quote {
+  max-width: 32rem;
+  color: var(--color-text-muted);
+  font-size: 0.9375rem;
+  text-align: right;
+}
+
 /* ── 8. SECTION: FOCUS TIMER ──────────────────────────────── */
 #focus-timer {
   display: flex;
@@ -205,6 +212,28 @@ p, li, label, input, button {
   justify-content: center;
   text-align: center;
   gap: var(--space-lg);
+}
+
+.timer-modes {
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.timer-mode-btn {
+  background-color: transparent;
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  padding: var(--space-xs) var(--space-md);
+}
+
+.timer-mode-btn:hover,
+.timer-mode-btn.active {
+  background-color: rgba(124, 58, 237, 0.14);
+  border-color: var(--color-accent);
+  color: var(--color-accent-light);
 }
 
 /* Row that holds [−] [timer] [+] horizontally */
@@ -265,6 +294,11 @@ p, li, label, input, button {
   justify-content: center;
 }
 
+.session-counter {
+  color: var(--color-text-muted);
+  font-size: 0.9375rem;
+}
+
 /* ── 9. SECTION: TO-DO LIST ───────────────────────────────── */
 #todo-list {
   display: flex;
@@ -288,6 +322,36 @@ p, li, label, input, button {
 
 .todo-header h2 {
   margin-bottom: 0;
+}
+
+#btn-clear-completed {
+  background-color: var(--color-bg-input);
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+  padding: var(--space-xs) var(--space-md);
+}
+
+#btn-clear-completed:hover {
+  background-color: rgba(248,113,113,0.15);
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+
+.todo-utils {
+  display: flex;                 /* Memaksa isi di dalamnya berjejer ke samping */
+  justify-content: space-between;/* Menggeser Toggle ke kiri mentok, Tombol ke kanan mentok */
+  align-items: center;           /* Menyamakan tinggi posisi secara vertikal agar sejajar lurus */
+  margin-bottom: 15px;           /* Memberi jarak aman dengan elemen di bawahnya */
+}
+
+/* Menghilangkan margin bawaan yang bisa merusak kelurusan */
+.toggle-hide-done {
+  margin-bottom: 0; 
+}
+
+#btn-clear-completed {
+  margin: 0;
+  padding: 5px 10px;             /* Memberi sedikit ruang di dalam tombol agar lebih rapi */
 }
 
 /* Hide completed toggle */
@@ -391,6 +455,7 @@ p, li, label, input, button {
 .todo-item {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: var(--space-sm);
   padding: var(--space-sm) var(--space-md);
   background-color: var(--color-bg-input);
@@ -457,6 +522,7 @@ p, li, label, input, button {
 
 .todo-item .task-title {
   flex: 1;
+  min-width: 10rem;
   font-size: 0.9375rem;
   color: var(--color-text);
 }
@@ -481,6 +547,19 @@ p, li, label, input, button {
 .priority-high   { background-color: rgba(248,113,113,0.15); color: var(--color-priority-high); }
 .priority-medium { background-color: rgba(251,191,36,0.15);  color: var(--color-priority-medium); }
 .priority-low    { background-color: rgba(52,211,153,0.15);  color: var(--color-priority-low); }
+
+.due-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+.due-overdue { background-color: rgba(248,113,113,0.18); color: var(--color-danger); }
+.due-today { background-color: rgba(251,191,36,0.18); color: var(--color-warning); }
+.due-tomorrow { background-color: rgba(96,165,250,0.18); color: var(--color-info); }
+.due-upcoming { background-color: rgba(52,211,153,0.14); color: var(--color-success); }
 
 /* ── 10. SECTION: QUICK LINKS ─────────────────────────────── */
 #quick-links {
@@ -561,9 +640,29 @@ p, li, label, input, button {
   color: #fff;
 }
 
+.link-favicon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: var(--radius-full);
+  background: rgba(167, 139, 250, 0.16);
+  color: var(--color-accent-light);
+  font-size: 0.75rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.link-btn:hover .link-favicon {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+}
+
 /* ── 11. FORM ELEMENTS (shared) ───────────────────────────── */
 input[type="text"],
-input[type="url"] {
+input[type="url"],
+input[type="date"] {
   background-color: var(--color-bg-input);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
@@ -580,7 +679,8 @@ input[type="url"]::placeholder {
 }
 
 input[type="text"]:focus,
-input[type="url"]:focus {
+input[type="url"]:focus,
+input[type="date"]:focus {
   outline: none;
   border-color: var(--color-accent);
   box-shadow: 0 0 0 3px var(--color-accent-glow);
@@ -717,6 +817,10 @@ button[type="submit"]:hover,
     align-items: flex-start;
   }
 
+  .daily-quote {
+    text-align: left;
+  }
+
   .timer-display {
     font-size: 4rem;
     padding: var(--space-lg) var(--space-xl);
@@ -755,7 +859,8 @@ button[type="submit"]:hover,
   }
 
   #link-name-input,
-  #link-url-input {
+  #link-url-input,
+  #todo-due-date {
     width: 100%;
   }
 
@@ -1113,6 +1218,60 @@ button[type="submit"]:hover,
     left: 1rem;
     max-width: none;
   }
+}
+
+/* Focus timer completion modal */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-lg);
+  background: rgba(15, 15, 26, 0.72);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.modal-overlay[hidden] {
+  display: none;
+}
+
+.modal-card {
+  width: min(100%, 420px);
+  padding: var(--space-xl);
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card), var(--shadow-glow);
+}
+
+.modal-card h2 {
+  margin-bottom: var(--space-sm);
+}
+
+.modal-card p {
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-lg);
+}
+
+.modal-actions {
+  display: flex;
+  gap: var(--space-sm);
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+#timer-alert-close {
+  background-color: var(--color-bg-input);
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+}
+
+#timer-alert-close:hover {
+  background-color: var(--color-border);
+  color: var(--color-text);
 }
 
 /* ── 25. INLINE EDIT ──────────────────────────────────────── */

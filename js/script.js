@@ -19,6 +19,8 @@ const Storage_Handler = {
     LINKS:  'tld_links',
     NAME:   'tld_custom_name',
     TIMER:  'tld_timer_duration',
+    TIMER_MODE: 'tld_timer_mode',
+    SESSION_COUNT: 'tld_focus_session_count',
     HIDE_DONE: 'tld_hide_done_tasks',
   },
 
@@ -72,6 +74,12 @@ const Storage_Handler = {
 
   saveDuration(mins)  { this._save(this.KEYS.TIMER, mins); },
   loadDuration()      { return this._load(this.KEYS.TIMER, 25); },
+
+  saveTimerMode(mode) { this._save(this.KEYS.TIMER_MODE, mode); },
+  loadTimerMode()     { return this._load(this.KEYS.TIMER_MODE, 'focus'); },
+
+  saveSessionCount(data) { this._save(this.KEYS.SESSION_COUNT, data); },
+  loadSessionCount()     { return this._load(this.KEYS.SESSION_COUNT, { date: '', count: 0 }); },
 };
 
 /* ══════════════════════════════════════════════════════════
@@ -84,6 +92,7 @@ const AppState = {
   links:       [],
   customName:  '',
   hideDone:    false,
+  focusSessionCount: { date: '', count: 0 },
   filters: {
     category:  'all',
     status:    'all',
@@ -106,6 +115,57 @@ function genId() {
   return (typeof crypto !== 'undefined' && crypto.randomUUID)
     ? crypto.randomUUID()
     : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function getTodayKey() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function formatDueDate(dateStr) {
+  if (!dateStr) return '';
+  return new Date(`${dateStr}T00:00:00`).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
+function getDueStatus(dueDate) {
+  if (!dueDate) return { label: '', className: '' };
+
+  const today = new Date(`${getTodayKey()}T00:00:00`);
+  const due = new Date(`${dueDate}T00:00:00`);
+  const diffDays = Math.round((due - today) / 86400000);
+
+  if (diffDays < 0) return { label: `Overdue ${formatDueDate(dueDate)}`, className: 'due-overdue' };
+  if (diffDays === 0) return { label: 'Due today', className: 'due-today' };
+  if (diffDays === 1) return { label: 'Due tomorrow', className: 'due-tomorrow' };
+  return { label: `Due ${formatDueDate(dueDate)}`, className: 'due-upcoming' };
+}
+
+const DAILY_QUOTES = [
+  'Small steps still count.',
+  'Focus on progress, not perfection.',
+  'Start simple, keep moving.',
+  'One clear task can change the day.',
+  'Protect your focus like it matters.',
+  'Done is a direction, not a mood.',
+  'A calm plan beats a crowded mind.',
+];
+
+function renderDailyQuote() {
+  const quoteEl = document.getElementById('daily-quote');
+  if (!quoteEl) return;
+
+  const dayIndex = Math.floor(Date.now() / 86400000) % DAILY_QUOTES.length;
+  quoteEl.textContent = DAILY_QUOTES[dayIndex];
+}
+
+function getLinkIconText(name, url) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '').charAt(0).toUpperCase();
+  } catch {
+    return (name || '?').trim().charAt(0).toUpperCase() || '?';
+  }
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -369,11 +429,20 @@ function showToast(message, type = 'warning', duration = 10000) {
    — Toast when trying to adjust while running
 ══════════════════════════════════════════════════════════ */
 
+const TIMER_MODES = {
+  focus:      { label: 'Focus', durationMins: 25 },
+  shortBreak: { label: 'Short Break', durationMins: 5 },
+  longBreak:  { label: 'Long Break', durationMins: 15 },
+};
+
 const timerState = {
   durationMins: 25,       // user-set duration in minutes
   remaining:    25 * 60,  // current countdown in seconds
   intervalId:   null,
   isRunning:    false,
+  currentMode:  'focus',
+  alarmAudio:   null,
+  alarmTimeoutId: null,
 };
 
 function renderTimer() {
@@ -393,23 +462,133 @@ function updateTimerButtons() {
   if (btnStop)  btnStop.disabled  = !timerState.isRunning;
 }
 
-function timerTick() {
-  if (timerState.remaining <= 0) {
-    stopTimer();
-    renderTimer();
-    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-      new Notification('Focus Timer', {
-        body: `Your ${timerState.durationMins}-minute session is done! Time for a break.`,
-      });
+function renderTimerMode() {
+  document.querySelectorAll('.timer-mode-btn').forEach(btn => {
+    const active = btn.dataset.mode === timerState.currentMode;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-pressed', String(active));
+  });
+}
+
+function renderSessionCounter() {
+  const counterEl = document.getElementById('focus-session-counter');
+  if (!counterEl) return;
+
+  const today = getTodayKey();
+  if (AppState.focusSessionCount.date !== today) {
+    AppState.focusSessionCount = { date: today, count: 0 };
+    Storage_Handler.saveSessionCount(AppState.focusSessionCount);
+  }
+
+  const count = AppState.focusSessionCount.count;
+  counterEl.textContent = `${count} focus session${count !== 1 ? 's' : ''} today`;
+}
+
+function incrementFocusSessionCount() {
+  if (timerState.currentMode !== 'focus') return;
+
+  const today = getTodayKey();
+  if (AppState.focusSessionCount.date !== today) {
+    AppState.focusSessionCount = { date: today, count: 0 };
+  }
+
+  AppState.focusSessionCount.count += 1;
+  Storage_Handler.saveSessionCount(AppState.focusSessionCount);
+  renderSessionCounter();
+}
+
+function setTimerMode(mode) {
+  if (!TIMER_MODES[mode] || timerState.isRunning) {
+    if (timerState.isRunning) {
+      showToast('Pause or reset the timer before changing modes.', 'warning', 8000);
     }
     return;
   }
-  timerState.remaining -= 1;
+
+  timerState.currentMode = mode;
+  timerState.durationMins = mode === 'focus'
+    ? Storage_Handler.loadDuration()
+    : TIMER_MODES[mode].durationMins;
+  timerState.remaining = timerState.durationMins * 60;
+  Storage_Handler.saveTimerMode(mode);
+  closeTimerAlertModal();
   renderTimer();
+  renderTimerMode();
+}
+
+function getTimerAlarmAudio() {
+  if (!timerState.alarmAudio) {
+    timerState.alarmAudio = new Audio('assets/audio/alert.mp3');
+    timerState.alarmAudio.preload = 'auto';
+    timerState.alarmAudio.loop = true;
+  }
+  return timerState.alarmAudio;
+}
+
+function playTimerAlarm() {
+  const audio = getTimerAlarmAudio();
+  stopTimerAlarm();
+  audio.currentTime = 0;
+  audio.play().catch(() => {
+    showToast('Timer complete. Audio could not be played by the browser.', 'warning', 8000);
+  });
+  timerState.alarmTimeoutId = setTimeout(stopTimerAlarm, 60000);
+}
+
+function stopTimerAlarm() {
+  if (timerState.alarmTimeoutId) {
+    clearTimeout(timerState.alarmTimeoutId);
+    timerState.alarmTimeoutId = null;
+  }
+  if (!timerState.alarmAudio) return;
+  timerState.alarmAudio.pause();
+  timerState.alarmAudio.currentTime = 0;
+}
+
+function openTimerAlertModal() {
+  const modal = document.getElementById('timer-alert-modal');
+  const closeBtn = document.getElementById('timer-alert-close');
+  if (!modal) return;
+
+  modal.hidden = false;
+  closeBtn?.focus();
+}
+
+function closeTimerAlertModal() {
+  const modal = document.getElementById('timer-alert-modal');
+  if (modal) modal.hidden = true;
+  stopTimerAlarm();
+}
+
+function completeTimer() {
+  stopTimer();
+  timerState.remaining = 0;
+  renderTimer();
+  incrementFocusSessionCount();
+  playTimerAlarm();
+  showToast('Focus session complete. Time for a short break!', 'success', 10000);
+  openTimerAlertModal();
+
+  if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+    new Notification('Focus Timer', {
+      body: `Your ${timerState.durationMins}-minute session is done! Time for a break.`,
+    });
+  }
+}
+
+function timerTick() {
+  timerState.remaining = Math.max(0, timerState.remaining - 1);
+  renderTimer();
+
+  if (timerState.remaining <= 0) {
+    completeTimer();
+    return;
+  }
 }
 
 function startTimer() {
   if (timerState.isRunning || timerState.remaining <= 0) return;
+  getTimerAlarmAudio().load();
   timerState.isRunning  = true;
   timerState.intervalId = setInterval(timerTick, 1000);
   updateTimerButtons();
@@ -425,6 +604,7 @@ function stopTimer() {
 
 function resetTimer() {
   stopTimer();
+  closeTimerAlertModal();
   timerState.remaining = timerState.durationMins * 60;
   renderTimer();
   updateTimerButtons();
@@ -432,10 +612,17 @@ function resetTimer() {
 
 function initTimer() {
   // Load saved duration
-  timerState.durationMins = Storage_Handler.loadDuration();
+  timerState.currentMode  = TIMER_MODES[Storage_Handler.loadTimerMode()]
+    ? Storage_Handler.loadTimerMode()
+    : 'focus';
+  timerState.durationMins = timerState.currentMode === 'focus'
+    ? Storage_Handler.loadDuration()
+    : TIMER_MODES[timerState.currentMode].durationMins;
   timerState.remaining    = timerState.durationMins * 60;
 
   renderTimer();
+  renderTimerMode();
+  renderSessionCounter();
   updateTimerButtons();
 
   document.getElementById('btn-timer-start')
@@ -444,6 +631,25 @@ function initTimer() {
     ?.addEventListener('click', stopTimer);
   document.getElementById('btn-timer-reset')
     ?.addEventListener('click', resetTimer);
+  document.querySelectorAll('.timer-mode-btn')
+    .forEach(btn => btn.addEventListener('click', () => setTimerMode(btn.dataset.mode)));
+
+  document.getElementById('timer-alert-close')
+    ?.addEventListener('click', closeTimerAlertModal);
+  document.getElementById('timer-alert-restart')
+    ?.addEventListener('click', () => {
+      closeTimerAlertModal();
+      resetTimer();
+      startTimer();
+    });
+
+  document.getElementById('timer-alert-modal')
+    ?.addEventListener('click', e => {
+      if (e.target.id === 'timer-alert-modal') closeTimerAlertModal();
+    });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeTimerAlertModal();
+  });
 
   // +/- duration buttons
   const adjustDuration = (delta) => {
@@ -460,7 +666,9 @@ function initTimer() {
 
     timerState.durationMins = newMins;
     timerState.remaining    = newMins * 60;
-    Storage_Handler.saveDuration(newMins);
+    if (timerState.currentMode === 'focus') {
+      Storage_Handler.saveDuration(newMins);
+    }
     renderTimer();
   };
 
@@ -498,7 +706,7 @@ const Task_Manager = {
     return AppState.tasks.some(t => t.title.toLowerCase() === normalized);
   },
 
-  createTask(title, categoryId, priority) {
+  createTask(title, categoryId, priority, dueDate = '') {
     const { valid, error } = this.validateTitle(title);
     if (!valid) return { task: null, error };
 
@@ -513,6 +721,7 @@ const Task_Manager = {
       title:      title.trim(),
       categoryId: categoryId || 'work',
       priority:   priority   || 'medium',
+      dueDate:    dueDate    || '',
       status:     'pending',
       createdAt:  new Date().toISOString(),
       updatedAt:  new Date().toISOString(),
@@ -559,6 +768,13 @@ const Task_Manager = {
     AppState.tasks.splice(idx, 1);
     Storage_Handler.saveTasks(AppState.tasks);
     return true;
+  },
+
+  clearCompleted() {
+    const before = AppState.tasks.length;
+    AppState.tasks = AppState.tasks.filter(t => t.status !== 'completed');
+    Storage_Handler.saveTasks(AppState.tasks);
+    return before - AppState.tasks.length;
   },
 
   toggleStatus(id) {
@@ -715,6 +931,13 @@ const UI_Renderer = {
     prioBadge.className   = `priority-badge priority-${task.priority}`;
     prioBadge.textContent = task.priority;
 
+    // ── Due date reminder badge ──
+    const dueInfo = getDueStatus(task.dueDate);
+    const dueBadge = document.createElement('span');
+    dueBadge.className = `due-badge ${dueInfo.className}`;
+    dueBadge.textContent = dueInfo.label;
+    dueBadge.hidden = !task.dueDate;
+
     // ── Edit button ──
     const btnEdit       = document.createElement('button');
     btnEdit.type        = 'button';
@@ -722,7 +945,7 @@ const UI_Renderer = {
     btnEdit.textContent = '✏️';
     btnEdit.setAttribute('aria-label', `Edit task "${task.title}"`);
     btnEdit.addEventListener('click', () => {
-      this._activateInlineEdit(li, task, titleSpan, catBadge, prioBadge, btnEdit, btnDelete);
+      this._activateInlineEdit(li, task, titleSpan, catBadge, prioBadge, dueBadge, btnEdit, btnDelete);
     });
 
     // ── Delete button ──
@@ -736,16 +959,17 @@ const UI_Renderer = {
       UI_Renderer.renderDashboard();
     });
 
-    li.append(dragHandle, checkbox, titleSpan, catBadge, prioBadge, btnEdit, btnDelete);
+    li.append(dragHandle, checkbox, titleSpan, catBadge, prioBadge, dueBadge, btnEdit, btnDelete);
     return li;
   },
 
   /** Replace title span with an inline form for editing title, category, and priority */
-  _activateInlineEdit(li, task, titleSpan, catBadge, prioBadge, btnEdit, btnDelete) {
+  _activateInlineEdit(li, task, titleSpan, catBadge, prioBadge, dueBadge, btnEdit, btnDelete) {
     // Hide original display elements while editing
     titleSpan.style.display = 'none';
     catBadge.style.display  = 'none';
     prioBadge.style.display = 'none';
+    dueBadge.style.display  = 'none';
     btnEdit.style.display   = 'none';
     btnDelete.style.display = 'none';
 
@@ -792,6 +1016,13 @@ const UI_Renderer = {
       prioSelect.appendChild(opt);
     });
 
+    // ── Due date input ──
+    const dueInput = document.createElement('input');
+    dueInput.type = 'date';
+    dueInput.value = task.dueDate || '';
+    dueInput.className = 'edit-inline-input edit-inline-date';
+    dueInput.setAttribute('aria-label', 'Edit due date');
+
     // ── Save button ──
     const btnSave       = document.createElement('button');
     btnSave.type        = 'button';
@@ -810,6 +1041,7 @@ const UI_Renderer = {
       const newTitle    = input.value.trim();
       const newCategory = catSelect.value;
       const newPriority = prioSelect.value;
+      const newDueDate  = dueInput.value;
 
       // Validate title
       if (!newTitle) {
@@ -832,6 +1064,7 @@ const UI_Renderer = {
         title:      newTitle,
         categoryId: newCategory,
         priority:   newPriority,
+        dueDate:    newDueDate,
       });
       UI_Renderer.renderDashboard();
     };
@@ -841,6 +1074,7 @@ const UI_Renderer = {
       titleSpan.style.display = '';
       catBadge.style.display  = '';
       prioBadge.style.display = '';
+      dueBadge.style.display  = '';
       btnEdit.style.display   = '';
       btnDelete.style.display = '';
     };
@@ -852,7 +1086,7 @@ const UI_Renderer = {
       if (e.key === 'Escape') cancelEdit();
     });
 
-    form.append(input, catSelect, prioSelect, btnSave, btnCancel);
+    form.append(input, catSelect, prioSelect, dueInput, btnSave, btnCancel);
     li.insertBefore(form, btnEdit.nextSibling);
     input.focus();
     input.select();
@@ -916,12 +1150,21 @@ const UI_Renderer = {
 
       const a       = document.createElement('a');
       a.href        = safeUrl;
-      a.textContent = link.name;
       a.target      = '_blank';
       a.rel         = 'noopener noreferrer';
       a.className   = 'link-btn';
       a.style.pointerEvents = 'auto';
       a.setAttribute('aria-label', `Open ${link.name}`);
+
+      const icon = document.createElement('span');
+      icon.className = 'link-favicon';
+      icon.textContent = getLinkIconText(link.name, safeUrl);
+      icon.setAttribute('aria-hidden', 'true');
+
+      const label = document.createElement('span');
+      label.textContent = link.name;
+
+      a.append(icon, label);
 
       const btnDel       = document.createElement('button');
       btnDel.type        = 'button';
@@ -1070,6 +1313,7 @@ function initTodoForm() {
   const errEl   = document.getElementById('todo-error');
   const catSel  = document.getElementById('todo-category');
   const prioSel = document.getElementById('todo-priority');
+  const dueEl   = document.getElementById('todo-due-date');
 
   if (!form) return;
 
@@ -1080,8 +1324,9 @@ function initTodoForm() {
     const title    = input?.value   ?? '';
     const category = catSel?.value  ?? 'work';
     const priority = prioSel?.value ?? 'medium';
+    const dueDate  = dueEl?.value   ?? '';
 
-    const { error } = Task_Manager.createTask(title, category, priority);
+    const { error } = Task_Manager.createTask(title, category, priority, dueDate);
 
     if (error) {
       if (errEl) errEl.textContent = error;
@@ -1089,7 +1334,23 @@ function initTodoForm() {
     }
 
     if (input) input.value = '';
+    if (dueEl) dueEl.value = '';
     UI_Renderer.renderDashboard();
+  });
+}
+
+function initClearCompleted() {
+  const btn = document.getElementById('btn-clear-completed');
+  if (!btn) return;
+
+  btn.addEventListener('click', () => {
+    const removed = Task_Manager.clearCompleted();
+    UI_Renderer.renderDashboard();
+    showToast(
+      removed > 0 ? `${removed} completed task${removed !== 1 ? 's' : ''} cleared.` : 'No completed tasks to clear.',
+      removed > 0 ? 'success' : 'info',
+      6000
+    );
   });
 }
 
@@ -1178,8 +1439,10 @@ document.addEventListener('DOMContentLoaded', () => {
   AppState.links      = Storage_Handler.loadLinks();
   AppState.customName = Storage_Handler.loadName();
   AppState.hideDone   = Storage_Handler.loadHideDone();
+  AppState.focusSessionCount = Storage_Handler.loadSessionCount();
 
   // ── Greeting (runs every second) ──
+  renderDailyQuote();
   updateGreeting();
   setInterval(updateGreeting, 1000);
   initCustomName();       // Challenge 2
@@ -1195,6 +1458,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initTodoForm();         // Challenge 1 (duplicate check inside Task_Manager)
   initFilters();
   initHideDoneToggle();   // Hide completed tasks toggle
+  initClearCompleted();
   initLinkForm();
   window.addEventListener('resize', () => requestAnimationFrame(syncQuickLinksHeight));
 });
