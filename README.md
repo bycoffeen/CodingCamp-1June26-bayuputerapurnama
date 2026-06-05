@@ -1,4 +1,4 @@
-<img width="2560" height="1600" alt="image" src="https://github.com/user-attachments/assets/bfeaad92-73a0-40f8-9ca9-89d4e035ce1a" /># CodingCamp-1June26-bayuputerapurnama
+CodingCamp-1June26-bayuputerapurnama
 Mini Project Coding Camp Revou - To-Do List Dashboard
 
 <img width="2560" height="1600" alt="image" src="https://github.com/user-attachments/assets/50e7d411-db27-4c04-9fa4-dc585006bfbb" />
