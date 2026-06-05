@@ -5,34 +5,34 @@ Mini Project Coding Camp Revou - To-Do List Dashboard
 
 # To-Do List Dashboard
 
-Sebuah aplikasi manajemen tugas (To-Do List) berbasis web yang responsif, bersih, dan modern. Aplikasi ini dirancang untuk membantu pengguna mengelola aktivitas harian mereka dengan fitur pelacakan status tugas yang intuitif, pencarian cepat, serta filter yang dinamis.
+A responsive, clean, and modern web-based task management dashboard. This application is designed to help users organize their daily activities through an intuitive task status tracker, real-time search capabilities, and dynamic filtering.
 
 ---
 
-## 🚀 Fitur Utama
+## 🚀 Key Features
 
-*   **Manajemen Tugas**: Menambah, menandai selesai, dan menghapus tugas dengan mudah.
-*   **Hide Completed Tasks**: Fitur *toggle* khusus untuk menyembunyikan tugas-tugas yang telah selesai agar tampilan tetap rapi.
-*   **Clear Completed**: Tombol sekali klik untuk membersihkan semua tugas yang sudah diselesaikan dari daftar.
-*   **Pencarian & Filter**: Mencari tugas spesifik secara *real-time* atau menyaring tugas berdasarkan kategori tertentu.
-*   **Ringkasan Statistik**: Menampilkan metrik kemajuan tugas secara visual di bagian atas dashboard.
-*   **Desain Responsif**: Tampilan yang optimal dan nyaman diakses baik melalui perangkat *desktop* maupun *mobile*.
-
----
-
-## 🛠️ Teknologi yang Digunakan
-
-*   **HTML5**: Untuk penulisan struktur semantik dan aksesibilitas elemen web.
-*   **CSS3**: Menggunakan metodologi *modern layout* seperti **Flexbox** untuk tata letak yang fleksibel serta *CSS Variables* untuk konsistensi tema warna.
-*   **JavaScript (ES6+)**: Untuk memanipulasi DOM secara dinamis dan menangani logika interaksi pengguna.
+* **Task Management**: Easily add, toggle completion status, and delete tasks.
+* **Hide Completed Tasks**: A dedicated utility toggle to hide finished tasks instantly, keeping your focus on pending items.
+* **Clear Completed**: A single-click action to completely purge all finished tasks from the active list.
+* **Search & Dynamic Filters**: Locate specific tasks using real-time search inputs or filter lists by specific tags/categories.
+* **Statistical Breakdown**: Displays visual progress metrics and completion rates at the top of the dashboard.
+* **Responsive Layout**: Fully optimized layout for seamless use across both desktop monitors and mobile screens.
 
 ---
 
-## 📂 Struktur Proyek
+## 🛠️ Tech Stack
+
+* **HTML5**: Semantic elements structured for optimal accessibility (`aria-*` labels integrated).
+* **CSS3**: Modern layout architecture utilizing **Flexbox** layouts and *CSS Custom Properties (Variables)* for centralized design tokens and dark-theme consistency.
+* **JavaScript (ES6+)**: Pure, vanilla DOM manipulation to handle real-time state updates and event interactions.
+
+---
+
+## 📂 Project Structure
 
 ```text
-├── index.html          # Halaman utama aplikasi (Struktur HTML)
+├── index.html          # Core structure and layout elements
 ├── css/
-│   └── style.css       # File gaya utama (Desain & Tata Letak)
+│   └── style.css       # Main stylesheet (Design tokens & component styling)
 └── js/
-    └── app.js          # Logika aplikasi (Manipulasi DOM & Fitur)
+    └── script.js       # Main application logic (DOM utilities & event handlers)
